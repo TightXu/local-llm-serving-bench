@@ -1,0 +1,36 @@
+# Internal source material - never published (Chinese originals + internal audit)
+_source-cn/
+
+# Raw experiment logs and result indexes: the captures carry local paths and non-ASCII
+# labels, so they stay out of the published tree (see docs/TOOLS.md). Their numeric content
+# is quoted, with sources, inside DESIGN.md.
+logs/
+
+# Internal recovery products and stale copies of anything
+*_restore_backup*
+*.bak-*
+*.bak
+
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+
+# Another engine's project (NInfer) and its weight format
+Ninfer models/
+*.ninfer
+
+# Model weights - never redistributed
+*.safetensors
+*.gguf
+*.bin
+
+# Pre-publish scanner: its pattern table lists the private names it screens for, so the
+# tool itself is not published (it stays in the working copy and is run before each push).
+tools/
+
+# Editor / OS noise
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+Desktop.ini

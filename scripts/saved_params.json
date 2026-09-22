@@ -1,0 +1,28 @@
+{
+  "Qwen3.8-27B-NVFP4": {
+    "max_model_len": "100000",
+    "max_num_seqs": "12",
+    "kv_cache_dtype": "int4_per_token_head",
+    "gpu_memory_utilization": "0.93",
+    "temperature": "0.8",
+    "top_p": "0.95",
+    "top_k": "20",
+    "port": "8000",
+    "enforce_eager": "n",
+    "reasoning_parser": "qwen3",
+    "mtp": "off"
+  },
+  "Qwen3.6-35B-A3B-NVFP4": {
+    "max_model_len": "150000",
+    "max_num_seqs": "12",
+    "kv_cache_dtype": "fp8",
+    "gpu_memory_utilization": "0.94",
+    "temperature": "0.6",
+    "top_p": "0.95",
+    "top_k": "20",
+    "port": "8000",
+    "enforce_eager": "n",
+    "reasoning_parser": "qwen3",
+    "mtp": "off"
+  }
+}
