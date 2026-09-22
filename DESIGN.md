@@ -1,8 +1,9 @@
 # DESIGN - local LLM serving measurements on one RTX 5090 (vLLM, NInfer, LM Studio)
 
 <!--
-Status (2026-09-22). All eight chapters are written. Chapters 4-8 were written in a second pass
-from the same body of internal source material as chapters 1-3; that material is not part of this
+Status (2026-09-23). All nine chapters are written. Chapters 4-8 were written in a second pass
+from the same body of internal source material as chapters 1-3, and chapter 6 in a third pass from
+that material plus the per-point records of the switch runs; that material is not part of this
 repository and is referred to there by an English shorthand, defined at the head of the chapter
 that first uses it.
 
@@ -19,19 +20,22 @@ Pending material, by chapter:
        in the per-point records either - the harness left that field empty for that engine - so it
        is published with its source (the engine's own request lines) and with the limit that goes
        with the prompt it was measured on; see the acceptance-rate section of chapter 2.
-  ch2 pending: the per-engine switch pairs (CUDA graph on/off, KV cache dtype, speculative
-       decoding). Planned in the protocol, not run in this round.
+  ch6 note: the per-engine switch points of the protocol are published in chapter 6, one point per
+       setting under the comparison protocol. What that chapter still lacks is named there and in the
+       last chapter: no combination of two switches, no under-load pool occupancy or preemption
+       counter for a switch point, and no single-variable fp8-KV point at the unchanged request
+       ceiling.
   ch4 pending: the polling driver that produced the seven in-round start-up logs was not retained,
        so those points cannot be re-run as they stand. The eighth row of the table was rejected in
        an earlier round and is marked as such wherever it appears.
   ch5 pending: a same-session pair for short-context single-stream decode, so that the two read-out
        paths a chapter apart can be separated; and a retained read-out rule for the stress series.
-  ch6 pending: the second geometry under the identical-request-surface protocol of chapter 2, and a
+  ch7 pending: the second geometry under the identical-request-surface protocol of chapter 2, and a
        calibrated per-token constant for it in the launcher's estimator.
-  ch7 note: the source material's earlier attribution of one engine's memory behaviour was corrected
-       upstream of this repository. Only the corrected version appears in chapter 7; the superseded
+  ch8 note: the source material's earlier attribution of one engine's memory behaviour was corrected
+       upstream of this repository. Only the corrected version appears in chapter 8; the superseded
        explanation appears nowhere in this document.
-  ch8 pending: licence terms of the quantised weights and of the closed-source comparison
+  ch9 pending: licence terms of the quantised weights and of the closed-source comparison
        application (their model cards were not read); upstream issue numbers quoted by the source
        material were never checked against a link, so no issue number appears in the published text
        - only the mechanism each one described.
@@ -52,9 +56,10 @@ than summarising them.
 | 3 | Model geometry and the KV budget | The per-token KV formula for the two model geometries measured, the pool cost a dtype switch actually controls, the memory ledger the launcher uses, the utilisation convention stated once, and the correction that the recurrent state is not governed by the KV cache dtype setting. **Written.** |
 | 4 | KV cache dtype: 8 candidates measured | The eight-row comparison of KV cache dtypes (bytes per token, pooled capacity, longest single context, start-up outcome), the counter-intuitive result and its root cause, and the explicit note that the 4-bit option is a capacity recommendation whose output quality was not measured. **Written.** |
 | 5 | Concurrency, context depth and CUDA graphs | The concurrency ladder, the preemption mechanism behind a long request collapsing to a fraction of a token per second, the safe pool-occupancy ceiling, and the CUDA graph on/off pair. **Written.** |
-| 6 | MoE vs dense on one 32 GB card | Speed against context depth for both model geometries, the memory geometry that lets the MoE hold deeper contexts, and the honest limits of that comparison. **Written.** |
-| 7 | What each engine actually optimises for | Why the three engines behave differently: batching and prefix handling, memory bookkeeping, prefill strategy, and which of those differences survive once the request surface is held identical. Every inference is marked as one. **Written.** |
-| 8 | What we did not verify | Every figure that came from elsewhere, the output quality of the 4-bit KV option, licence terms, and the upstream issue numbers the source material quoted without a link. **Written.** |
+| 6 | Switch matrix: one setting changed at a time | The per-engine switch points under the comparison protocol - CUDA graphs, KV cache dtype, speculative-decoding scheme, and one model swap - each at four depths, with its change against that engine's own baseline column and the capacity, memory or prefill cost it carries; plus the readings that must not be taken from it: acceptance rates near 100% that are a property of this prompt, a KV row that moved two variables, a model swap that is not an MTP measurement, and one depth whose median is a range. **Written.** |
+| 7 | MoE vs dense on one 32 GB card | Speed against context depth for both model geometries, the memory geometry that lets the MoE hold deeper contexts, and the honest limits of that comparison. **Written.** |
+| 8 | What each engine actually optimises for | Why the three engines behave differently: batching and prefix handling, memory bookkeeping, prefill strategy, and which of those differences survive once the request surface is held identical. Every inference is marked as one. **Written.** |
+| 9 | What we did not verify | Every figure that came from elsewhere, the output quality of the 4-bit KV option, licence terms, and the upstream issue numbers the source material quoted without a link. **Written.** |
 
 ## Scope, hardware and measurement method
 
@@ -236,9 +241,9 @@ prefill was slow.
 3. **The weights are not the same.** LM Studio served a Q4_K_M GGUF artifact while the other two
    served NVFP4. "Same protocol" applies to the request and sampling surface, not to the weights.
 4. **Single stream, three repetitions, no concurrency.** These figures describe one request at a
-   time. They cannot be extrapolated to several requests in flight, and the switch matrix the
-   protocol called for - CUDA graph on and off, KV cache dtype, speculative decoding, each as
-   its own pair of points - was not run in this round.
+   time. They cannot be extrapolated to several requests in flight. The switch matrix the protocol
+   called for - CUDA graph on and off, KV cache dtype, speculative decoding, each as its own point -
+   was not run in this round; it is chapter 6.
 5. **One engine's figures depend on a log format.** LM Studio's numbers exist only because its
    server log prints timing information in a parseable shape. A formatting change upstream, on a
    closed-source application no one here controls, would silently remove the source of those
@@ -256,9 +261,9 @@ bench/ninfer-v2.json and bench/lmstudio.json (per-point records: n = 3, median, 
 rate), 3engine-benchmark-protocol-20260922.md (read-out definitions, not restated here). Every
 ratio, percentage and capacity quoted below was recomputed from the numbers in this chapter.
 Still pending: a per-depth draft-acceptance reading and the preemption counters for the vLLM
-speculative series, and the per-engine switch pairs (CUDA graph on/off, KV cache dtype, speculative
-decoding) that the protocol defines and this round did not run. The depth axis published here is the
-prompt token count each engine reported, never the nominal label it was asked for. -->
+speculative series, and the dtype switch at this chapter's own request ceiling, which would make the
+KV row single-variable. The per-engine switch matrix itself is chapter 6. The depth axis published
+here is the prompt token count each engine reported, never the nominal label it was asked for. -->
 
 This is the chapter the rest of the document supports. Three engines, four context depths, one
 request in flight at a time, temperature 0, 256 output tokens, median of three measured requests
@@ -479,8 +484,9 @@ three separate measurements. The state of each one here is given with it.
    for those points. The deep-context collapse is reproducible, but the retained evidence does not
    separate draft overhead from pool pressure, because the preemption counter was read during the
    run and is not carried in the per-point records this repository keeps.
-2. The per-engine switch pairs the protocol defined: CUDA graph on and off, KV cache dtype, and
-   speculative decoding, each as a pair of same-protocol points rather than as a single number.
+2. Two points that would tighten the switch matrix of chapter 6: the fp8-KV point taken at this
+   chapter's own request ceiling, so that the dtype becomes the only variable in that row, and a
+   combination point that puts graphs off together with speculation on.
 3. A concurrency ladder, which would move this chapter from "one request at a time" to something
    that speaks to serving several requests at once.
 
@@ -913,7 +919,7 @@ at all.
 <!-- Sources: cn-concurrency = the internal write-up of the KV pool concurrency stress series and the
 CUDA graph pair (2026-09-05), whose harness family is the one in this repository
 (scripts/kv_bench.py); cn-moe = the internal write-up of the second geometry, which contributes the
-occupancy points and is the next chapter's subject. The pool cost per token and the ledger constants
+occupancy points and is the subject of chapter 7. The pool cost per token and the ledger constants
 are the measured ones of the two preceding chapters. Where a figure is a rate multiplied by a
 concurrency it is marked computed; where a read-out was not retained the cell says so. These points
 were taken in a different series from the comparison matrix, with different depths, output lengths
@@ -1126,10 +1132,262 @@ which was not done.
    under the ceiling and still reports a non-zero preemption count did not hold its pool, whatever
    its average occupancy says.
 
+## Switch matrix: one setting changed at a time
+
+### Method
+
+This chapter is the protocol's own switch matrix: the request surface of the comparison matrix, run
+once per setting. One request in flight, temperature 0, a fixed output length of 256 tokens, the same
+fill corpus, a per-request salt that defeats prefix reuse, four depths asked for (0, 8,192, 32,768 and
+98,304), one discarded warm-up and three measured requests per point, median reported. The read-out is
+the same server-reported decode rate the matrix uses; the client-side rate stays in the per-point
+records and is not published as a comparison value, for the reason given in the comparison chapter.
+
+A row is a switch because **one** setting differs from that engine's baseline column of the comparison
+matrix. Two rows do not satisfy that condition, and both say so where they appear: the KV-dtype point
+of the first engine also moved two capacity parameters, because that is how the protocol's second
+configuration is defined, and the third engine's row is a model swap rather than a setting, because on
+that application the relevant setting does not exist in the running server at all. Every other row is
+single-variable, and each carries a start-up signature in its own record that shows the switch took
+effect: a weight footprint that fell by 0.7 GiB when speculation was removed, a KV pool whose byte
+cost halved when its dtype changed, a draft head that added 1.7 GiB of weights.
+
+Two read-out gaps are inherited from the matrix and travel with the tables below:
+
+- the first engine publishes no prefill counter, so its baseline prefill cells are empty (comparison
+  chapter). Its two switch points carry a supplementary one-token-probe prefill reading instead, which
+  is comparable between those two points and with nothing else.
+- the per-point records leave the draft-acceptance field empty for two engines: one reports acceptance
+  under a different name than the harness maps, and the other does not report it at all. Acceptance
+  figures appear here only where an engine's own request lines carry them, with that provenance stated
+  beside them.
+
+### The baseline columns
+
+Server-reported decode, tokens per second, median of three, as published in the comparison chapter.
+
+| Engine | Baseline setting | 0 | 8,192 | 32,768 | 98,304 |
+|---|---|---|---|---|---|
+| vLLM | NVFP4 weights, `int4_per_token_head` KV, no speculative decoding | 67.26 | 63.32 | 58.26 | 45.49 |
+| NInfer | fp8 KV, 3 draft tokens, 196,608-token ceiling | 262.51 | 252.97 | 251.69 | 230.94 |
+| LM Studio | Q4_K_M weights with a draft head inside them, `q4_0` KV, 201,000-token context | 90.97 | 85.29 | 134.33 | 72.52 |
+
+The third engine's 32,768 cell is the one its draft head lifted, and it is why two rows of the matrix
+below have to be read carefully.
+
+### The matrix
+
+One row per switch, at the same four depths. Decode is server-reported, median of three; the bracketed
+figure is the change against the baseline cell above it; the average is the mean of the four changes -
+computed, not measured. The last column is the price, and it is the column that decides whether a
+switch is worth having.
+
+| Engine | Setting changed | 0 | 8,192 | 32,768 | 98,304 | Average | What the switch costs |
+|---|---|---|---|---|---|---|---|
+| vLLM | CUDA graphs off (eager flag) | 13.04 (-80.6%) | 13.21 (-79.1%) | 14.73 (-74.7%) | 14.91 (-67.2%) | **-75.4%** | Nothing is bought. Weight footprint and pool are unchanged; what comes back is a graph capture of 0.11 to 0.18 GiB at that KV dtype and a shorter start-up. Prefill and wall clock also pay. |
+| vLLM | KV dtype `int4_per_token_head` -> `fp8`, with `max-model-len` 114,688 -> 73,728 and utilisation 0.94 -> 0.92 | 71.47 (+6.3%) | 70.22 (+10.9%) | 68.98 (+18.4%) | 66.13 (+45.4%) | **+20.2%** | A third of the usable context ceiling taken away (73,728 against 114,688) and half the pool (108,423 tokens against 234,970). Not a single-variable point. |
+| NInfer | Speculative decoding off | 79.97 (-69.5%) | 77.47 (-69.4%) | 77.02 (-69.4%) | 71.77 (-68.9%) | **-69.3%** | 0.7 GiB fewer weights and 0.7 GiB more free memory; prefill is unchanged. The rate is the price, and there is no other side to the trade. |
+| NInfer | KV dtype `fp8` -> `nvfp4` | 254.55 (-3.0%) | 254.89 (+0.8%) | 248.57 (-1.2%) | 236.30 (+2.3%) | **-0.3%** | None measured. Memory runtime falls from 7.76 to 4.92 GiB at the same 196,608-token capacity, so 2.84 GiB comes back as free memory. |
+| NInfer | Draft scheme `mtp` (3 tokens) -> `dflash2` (7 tokens) | 465.95 (+77.5%) | 472.77 (+86.9%) | 461.37 (+83.3%) | 396.88 (+71.9%) | **+79.9%** | 1.7 GiB more weights, 160 MiB more host-pinned state, 81.5 MiB of free device memory left, 4.3% to 11.8% less prefill, and one depth whose median is not settled (below). |
+| LM Studio | Model artifact: Q4_K_M with a draft head inside the weights -> the previous version line of the same family, Q6_K, no draft head | 62.19 (-31.6%) | 59.42 (-30.3%) | 51.53 (-61.6%) | 37.29 (-48.6%) | **-43.0%** | A weight file about 5 GB larger (23.01 GB on disk; 21.43 GiB of weights as the application reports them), device usage measured at 29,705 to 29,764 MiB against a 2,426 to 2,591 MiB idle desktop, 9% to 12% less prefill at the three deeper points, and two variables moved at once. |
+
+Every cell above is a median of three samples whose spread stayed inside the protocol's 10% band
+except one: the deepest cell of the draft-window row, which is dealt with under "What these results
+cannot be read as". Nothing in these points was evicted or truncated - every request returned the full
+256 output tokens, no preemption was recorded where an engine reports one, and every point's
+start-up signature matches the setting it claims.
+
+### The two readings that belong under the table
+
+The first engine's rows need a prefill reading that its baseline column does not have, so both of its
+switch points were measured a second time with a one-token probe that reports prompt throughput from
+the serving side. Same probe for both, so the two columns are comparable with each other and with
+nothing else.
+
+| vLLM, supplementary prefill (tok/s) | 0 | 8,192 | 32,768 | 98,304 |
+|---|---|---|---|---|
+| Graphs off | 1,194.52 | 7,799.07 | 5,234.78 | 2,724.95 |
+| KV dtype `fp8` | 1,661.61 | 10,655.16 | 9,127.55 | 6,468.39 |
+
+The gap widens with depth: 1.4x at the shortest probe, 2.4x at the deepest one, which is 8.3 seconds
+of prompt ingestion against 19.6 seconds at 98,304 requested. That is the mechanism behind the client
+column of the fp8 row, which reads +103.1% where the server column reads +45.4%: the client rate
+carries the prefill time of its own single request inside the same wall clock.
+
+The second engine's request lines carry the draft-acceptance counts, so they are published for the
+three points where they exist - including the baseline, whose own line was re-read for this table. The
+counts in the last column come from those lines and include each point's discarded warm-up; the
+percentages themselves agree between the two available readings of the same requests (the per-point
+records and the engine's request lines) to within a tenth of a point.
+
+| NInfer, draft acceptance | 0 | 8,192 | 32,768 | 98,304 | Drafts per request |
+|---|---|---|---|---|---|
+| `mtp`, 3 draft tokens (baseline) | 100.0% | 100.0% | 100.0% | 100.0% | 191 |
+| `nvfp4` KV | 99.7% | 100.0% | 100.0% | 100.0% | 191 |
+| `dflash2`, 7 draft tokens | 99.7% | 100.0% | 100.0% | 100.0% | 223 |
+
+Read as a pair with the matrix: the 3-draft scheme was already accepting essentially every draft it
+proposed on this prompt, so the faster row above is not a better draft head - it is the same near-total
+acceptance cashed in over a longer draft window, 223 proposals per request against 191.
+
+### vLLM: the largest single switch in this document, and one that pays only at depth
+
+**CUDA graphs.** Turning them off is the largest switch measured anywhere in this document: decode
+falls from 45 to 67 tokens per second to 13.0, 13.2, 14.7 and 14.9, an average of -75.4%, and the
+profile of the loss says why. The graphs-off rates are nearly flat across depth, so the path is no
+longer the one the graphs-on column is on: with graphs off the engine pays per-kernel launch overhead
+that does not care how deep the context is, and the deeper the context, the more of the graphs-on rate
+the fixed overhead has already given up, so the *relative* loss is smallest at the deepest point
+(-67.2%) and largest at the shortest (-80.6%). The measurement's own cost is visible in wall clock:
+one request took 19 to 37 seconds instead of a few.
+
+The concurrency chapter carries a graph pair of its own, from the stress series: 13.9 against 48.2
+tokens per second at a prompt of about 4,000 tokens with 500 output tokens, +247%. Different depths,
+different output length, a different read-out rule and a pool state that chapter spends a page
+disclaiming, so the two pairs **are not comparable figures**. What they agree on is the shape: with
+graphs off the rate lands near 14 tokens per second whatever else changes, and with graphs on it moves
+with depth. Off is not a tuning option here; it is the setting a device runs when it cannot start
+otherwise.
+
+**KV cache dtype.** The other direction, and a trade rather than a loss: +6.3% at the shortest context,
++10.9%, +18.4%, and +45.4% at the deepest, averaging +20.2%. The gain grows monotonically with depth,
+which is what the arithmetic predicts - the attention work that reads the cache scales with the tokens
+attended over, so a narrower cache reads less per step, and the shallower the context the less there is
+to read. What it costs is capacity, and the cost is paid by the whole configuration rather than by the
+cache alone: the request ceiling falls from 114,688 tokens to 73,728 and the pool from 234,970 tokens
+(2.05x the ceiling) to 108,423 (1.47x). A configuration that needs a 100,000-token single request
+cannot hold this point at all, whatever the rate says.
+
+It is also the one row in this chapter that is not a single-variable experiment: the dtype, the ceiling
+and the utilisation fraction moved together, because the protocol defines them as one alternative
+configuration. Read it as configuration B against configuration A, not as "fp8 is 20% faster". A
+strictly single-variable point - fp8 dtype at the unchanged 114,688-token ceiling - was not run, and at
+that ceiling the narrower cache may not fit the same pool on this card.
+
+### NInfer: one free switch, one flat loss, one large gain with a price
+
+**Speculation off** is the counterfactual for both speculative columns of this document, and it is
+flat: 80.0, 77.5, 77.0, 71.8 tokens per second across four depths, an average of -69.3%, with prefill
+essentially unchanged (within 1.5% at the three deeper points). A rate that barely moves with depth is
+the signature of a configuration bound by weight bandwidth rather than by attention, and it puts the
+upper bound on what this artifact can do per forward pass. It also prices the baseline: whatever the
+draft scheme costs, it buys 3.2x to 3.3x of the unspeculated rate at every depth measured.
+
+**The KV dtype switch is free on this engine.** `fp8` to `nvfp4` changes decode by -3.0%, +0.8%, -1.2%
+and +2.3% - an average of -0.3%, inside the run-to-run band this document quotes, so the honest reading
+is "no measurable change" rather than a small loss. The reason to make the change is not the rate: the
+engine was started with the same fixed 196,608-token capacity in both points, and that pool's runtime
+memory falls from 7.76 GiB to 4.92 GiB, taking free device memory from 2.02 GiB to 3.70 GiB. It is worth
+stating what that is and is not: the saving appears as free memory, not as more context, because
+capacity here is a start-up flag rather than a fraction of whatever is free. Prefill is slightly lower
+on the narrower pool (1.0% to 2.6% at the three deeper points); decode is not.
+
+**The draft window is where the rate is.** Moving from a 3-token draft scheme to a 7-token one raises
+the server-reported decode to 466, 473, 461 and 397 tokens per second, an average of +79.9%, and the
+acceptance table above shows the mechanism is the window rather than the hit rate: acceptance was
+already at the ceiling. The client column reads far less at depth (+7.1% at 32,768 and -5.5% at 98,304)
+for the same reason as the first engine's fp8 row - the client rate carries prefill, and the wider draft
+window makes prefill slower, by 4.3% to 11.8% at the three deeper points.
+
+The price is memory, and it is nearly total: 21.7 GiB of weights against 20.0, 747 MiB of host-pinned
+state against 587, and 81.5 MiB of free device memory left where the baseline had 2.02 GiB. That
+footprint is also the leading candidate explanation for the one unstable cell in this chapter:
+at 98,304 asked for, the three samples read 396.88, 441.07 and 222.18 tokens per second - a spread of
+55.2%, five times the protocol's threshold - and the separately recorded recheck of that single depth
+read 358.55, 437.42 and 429.92 (median 429.92, spread 18.4%), so the slow request reproduces. Its
+signature is not engine jitter: prefill and decode were slowed by the same factor, queueing time was
+10 to 22 milliseconds, and acceptance was still 223 of 223. A whole request held back at once, on a
+configuration with 81.5 MiB of headroom, points at an allocation or a page-in outside the engine's own
+scheduling - which is a candidate explanation, not a demonstrated one, and the slow request also
+appeared in a schedule where other measurement activity on the same machine cannot be ruled out.
+**What is defensible: this row's deepest cell has a true median between about 397 and 430 tokens per
+second, one request in six is roughly twice as slow, and the cell must not be quoted to a decimal
+place.**
+
+### LM Studio: not a switch
+
+On this application the speculative-decoding state is a property of the loaded artifact, not a runtime
+flag, so the only way to run the no-draft-head case is to load a different model. That row therefore
+moves the quantisation (Q4_K_M to Q6_K), the tokenizer and the decoding path at once, and it is the
+reason it cannot be read as "the MTP head is worth 43%".
+
+What it does show, with those limits attached:
+
+- **All four depths are slower**, by 31.6%, 30.3%, 61.6% and 48.6%. The deepest relative loss is at
+  32,768, and that cell is the least informative of the four: the baseline's own 32,768 point is the
+  one its draft head lifted (acceptance 0.99, and a decode rate of 134.33 where 8,192 reads 85.29 and
+  98,304 reads 72.52), so the -61.6% mixes a lost draft head with a heavier weight format and cannot
+  be split.
+- **Prefill falls 9% to 12% at the three deeper points**, which the missing draft head cannot explain:
+  speculation touches decode only. A heavier weight format read by a prefill phase that is largely
+  weight-bandwidth bound explains it, and that part of the row is a clean statement about the artifact
+  swap.
+- **The acceptance column is empty, and that is a result rather than a gap**: the measurement window
+  logged no draft-acceptance line at all, which is the independent evidence that this artifact has no
+  usable draft head.
+- **The context is unchanged**: 201,000 tokens still loaded (`n_ctx_slot` 201,216), so the four depths
+  correspond one to one with the baseline's and no depth had to be dropped.
+- **The prompt token count moves 42 tokens the other way at every depth** (75 against 117, 4,529
+  against 4,571, 17,880 against 17,922, 53,505 against 53,547): the same corpus through a different
+  tokenizer. At the deeper points that is under 1% and does not matter; at the shortest point the
+  baseline's prompt is 56% longer than this one's, which is why that point's prefill reading is not
+  used as a comparison anywhere in this chapter even though its decode reading is.
+- **There is no memory reading for the baseline**, so the device usage measured for this row (29,705
+  to 29,764 MiB during the run, against a 2,426 to 2,591 MiB idle desktop, i.e. about 27 GB more than
+  idle) has nothing to be compared against inside this document. What it does say on its own is that
+  the heavier artifact still fits this card at this context, with about 2 GiB of the 32 GB left.
+
+### What these results cannot be read as
+
+1. **Not as a general speculative-decoding gain.** The fill corpus asks for one sentence repeated
+   twenty times, which is about as predictable as text gets, and that is why acceptance sits at or
+   near 100% in every speculative row here. The same engine, asked a short free-generation question in
+   the same session, accepted 3 of 14 drafts - 21.4% - and the same 3-draft scheme is documented
+   upstream at 61 to 62% on ordinary text. The +79.9% of the draft-window row and the speculative gain
+   of the matrix both belong to highly predictable output; on open-ended generation they shrink, and
+   this chapter contains no measurement of by how much.
+2. **Not as a single-variable result for the fp8-KV row.** Dtype, ceiling and utilisation fraction
+   moved together by construction. The other five rows are single-variable; that one is not.
+3. **Not as the value of a draft head on the desktop application.** The swap changed the quantisation
+   and the tokenizer with it, and the missing head cannot be separated from the heavier weights without
+   two artifacts that differ only in the head, which this machine does not have.
+4. **Not as a settled median for the deepest cell of the draft-window row.** 55.2% spread on the main
+   measurement, 18.4% on the recheck of that one depth; the figure is a range, about 397 to 430, and
+   the configuration it belongs to is the one that leaves 81.5 MiB free.
+5. **Not as free capacity.** The `nvfp4` KV row returns 2.84 GiB of runtime memory and not one token of
+   context on that engine, because capacity is fixed at start-up. Realising it as context means
+   restarting with a larger capacity, which was not measured.
+6. **Not as differences smaller than the run-to-run band.** Identical configurations have differed by
+   about 10% between boots on this machine, so the -0.3% average of the KV-dtype row is noise, and a
+   single-digit percentage anywhere in the matrix is not a resolved difference. The switches worth
+   acting on here are the ones that move a rate by tens of percent.
+7. **Not as a comparison of prefill between the engines.** The two supplementary prefill columns exist
+   for one engine's switch points only, were taken with a probe whose salt prefix makes its prompt two
+   tokens longer than the same depth's main measurement, and have no baseline counterpart.
+8. **Not as anything about output quality.** A KV cache dtype and a weight quantisation both change
+   what the model would answer, and neither was scored; every figure above is a rate.
+
+### Limits of this chapter
+
+1. Six points, four depths each, one card, one build set, one week. No switch point was repeated as a
+   whole, so there is no evidence on how much a switch's own result moves between runs beyond the three
+   samples inside each cell.
+2. No combination points: graphs off with speculation on, fp8 KV with speculation on, the memory-saving
+   dtype with the wider draft window, and draft windows other than the one the protocol named were all
+   left unmeasured.
+3. Pool figures quoted here are start-up readings, not occupancy observed under load, and no preemption
+   counter is carried by these points. The configuration that ran out of headroom did so in free
+   memory, not in the pool.
+4. The third engine exposes no CUDA-graph switch and no timing API, so it contributes one row and no
+   mechanism; its figures exist only because its log prints timing fields.
+5. Every measurement here is single-stream and none of it says anything about several requests in
+   flight, where the concurrency chapter's own series shows one configuration reading 6.3 and 13.7
+   tokens per second in two rounds.
+
 ## MoE vs dense on one 32 GB card
 
 <!-- Sources: cn-moe = the internal write-up of the second geometry's measurement and its start-up
-failures (2026-09-05); cn-concurrency = the dense stress series quoted in the previous chapter. The
+failures (2026-09-05); cn-concurrency = the dense stress series quoted in the concurrency chapter. The
 geometry, the per-token formula and every ratio below were recomputed from the constants in the
 geometry chapter, not copied. The second geometry was **not** run through the identical-request-surface
 matrix of this document: the two series quoted here differ in depth, concurrency, output length, KV
@@ -1236,8 +1494,8 @@ dense model's 150,000 figure as a capacity (geometry chapter).
    different things on the two geometries and is not comparable without the per-token cost.
 3. **Not the same read-out.** Both series read rates and counters from the serving side, but the
    stress series does not record the rule that turned its output into a rate, and one dense cell
-   spans 2.2x across two rounds of an identical configuration (previous chapter). The dense cells in
-   the table above carry that spread.
+   spans 2.2x across two rounds of an identical configuration (the concurrency chapter). The dense
+   cells in the table above carry that spread.
 4. **The aggregate column is computed**, as a rate multiplied by a concurrency, and assumes equal
    shares.
 5. **No quality measurement.** Reasoning quality on long multi-step work was not benchmarked, and the
@@ -1268,10 +1526,11 @@ depth, any claim about its quality, and any claim that a 200K context was held o
 
 <!-- Sources: cn-ledger and cn-compare = the internal two-engine comparison write-up and its own
 later correction sections, which are the source of the memory-bookkeeping material; cn-concurrency
-and cn-moe as in the two previous chapters; the comparison matrix of this document for the
-across-engine figures; the start-up logs behind the geometry chapter for the per-token costs. This
-chapter is where mechanism is read off measurements, so every sentence that reasons past a measured
-number is marked as an inference where it is made, and the measured facts it reasons from are named.
+as in the concurrency chapter and cn-moe as in the previous one; the comparison matrix of this
+document for the across-engine figures; the start-up logs behind the geometry chapter for the
+per-token costs. This chapter is where mechanism is read off measurements, so every sentence that
+reasons past a measured number is marked as an inference where it is made, and the measured facts it
+reasons from are named.
 The corrected version of the two attributions the source material superseded is used here; the
 superseded versions appear nowhere in this document. -->
 
@@ -1310,10 +1569,10 @@ possible for two requests to share a prefix. Three measured consequences, and on
   is about 484 tokens per second, far above any single request's rate. **Inference:** an aggregate
   above any individual request's rate is batch-level parallelism, and the pool peak is what says so.
 - Five requests carrying identical content held a 22.3% pool peak where five with distinct content
-  held 50.8% (previous chapter). **Inference:** the first figure is prefix merging - one cached copy
-  serving five requests - and it is the mechanism the comparison chapter's per-request salt exists to
-  disable. That the requests were merged is measured through the pool counters; the bookkeeping that
-  performs the merge was not read.
+  held 50.8% (the concurrency chapter). **Inference:** the first figure is prefix merging - one
+  cached copy serving five requests - and it is the mechanism the comparison chapter's per-request
+  salt exists to disable. That the requests were merged is measured through the pool counters; the
+  bookkeeping that performs the merge was not read.
 - The engine's speculative-decoding gain collapses with depth and goes negative at the deepest point
   (-33.9%), while a second engine on the same card holds its rate flat with a 1.00 draft acceptance at
   every depth (comparison chapter - that 1.00 came from the engine's own request logs, under a prompt
@@ -1366,7 +1625,7 @@ The source material behind this repository first attributed one engine's more co
   straight into free memory. The direction of the original claim was right; its magnitude was not.
 - The CUDA-graph capture is a **secondary** term: 0.11 to 0.51 GiB depending on the attention
   backend, measured across the dtype series. It is also a cost that should still be paid, because
-  disabling it costs 40% to 247% of the decode rate (previous chapter).
+  disabling it costs 40% to 247% of the decode rate (the concurrency chapter).
 - The comparison "one engine adds a graph and the other does not" is not supportable in the first
   place. The closed-source engine also performs kernel fusion and persistent-kernel work, and its log
   carries a reuse counter that runs into the thousands of lines; it simply exposes no switch. **The
@@ -1436,7 +1695,7 @@ rate is flat or one acceptance rate is high - is inference from those facts and 
 ## What we did not verify
 
 <!-- Sources: every chapter of this document, plus the source material named in them. This chapter
-exists so that a reader does not have to reconstruct, from eight chapters of measurements, which
+exists so that a reader does not have to reconstruct, from nine chapters of measurements, which
 numbers are this machine's and which are somebody else's. -->
 
 ### Figures that came from outside this machine
@@ -1487,10 +1746,11 @@ of them.
 4. **Concurrency under this protocol.** The comparison matrix is one request at a time; the
    concurrency and occupancy figures come from a different series whose identical-configuration
    rounds differed by 2.2x.
-5. **The protocol's own switch matrix.** CUDA graph on/off, KV cache dtype, and speculative decoding
-   were each defined as a same-protocol pair of points. A graph pair and a KV dtype series exist, but
-   in other series and at other depths; no speculative-decoding pair exists under the comparison
-   protocol at all.
+5. **The combination points of the switch matrix.** Chapter 6 carries one point per switch under the
+   comparison protocol, but nothing there puts two switches together: graphs off with speculation on,
+   the narrower KV cache with the wider draft window, and the memory-saving dtype with any of the
+   others were all left unmeasured. The fp8-KV point is also still a two-variable point, and no
+   switch point has an under-load pool occupancy or a preemption counter.
 6. **The second geometry under the comparison protocol**, and its ceiling: about 192,800 tokens is
    computed from a start-up limit and a pool, never measured; its 150,000-token working point is a
    remembered configuration.
@@ -1578,7 +1838,7 @@ one is asking to be trusted rather than checked.
 ### What this repository does claim
 
 That one machine's numbers, taken under a stated method, support the specific statements labelled as
-measured in the eight chapters above - and nothing further. The statements that did not survive
+measured in the nine chapters above - and nothing further. The statements that did not survive
 recomputation were corrected or dropped rather than carried, the mechanisms that were inferred are
 marked as inference where they appear, and the material that came from elsewhere is either labelled
 as such or absent. A reader who wants to disagree with a figure has, for every figure, the method

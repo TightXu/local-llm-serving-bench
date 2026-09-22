@@ -33,7 +33,10 @@ anyone deciding between a dense model and an MoE model of the same class, or bet
 engine and a desktop inference application. If you are choosing a KV cache dtype, start with
 [the KV cache dtype comparison](DESIGN.md#kv-cache-dtype-8-candidates-measured); if you are chasing
 a throughput cliff, start with
-[concurrency, context depth and CUDA graphs](DESIGN.md#concurrency-context-depth-and-cuda-graphs).
+[concurrency, context depth and CUDA graphs](DESIGN.md#concurrency-context-depth-and-cuda-graphs); if
+you are deciding whether a switch is worth its price, start with
+[the switch matrix](DESIGN.md#switch-matrix-one-setting-changed-at-a-time), which measures CUDA
+graphs, KV cache dtype and speculative decoding one setting at a time and states what each one costs.
 Everything should be read as *this machine, this build*; see
 [Method and its limits](DESIGN.md#method-and-its-limits).
 
@@ -140,7 +143,7 @@ full dtype table.
 
 | Path | What it is |
 |---|---|
-| `DESIGN.md` | The measurement report: environment, protocol, the three-engine matrix, model geometry and the KV budget, the KV dtype comparison, concurrency and CUDA graphs, MoE against dense, and what was not verified |
+| `DESIGN.md` | The measurement report: environment, protocol, the three-engine matrix, model geometry and the KV budget, the KV dtype comparison, concurrency and CUDA graphs, the switch matrix (one setting changed at a time, with what each switch costs), MoE against dense, and what was not verified |
 | `docs/QUICKSTART.md` | The linear path from a bare WSL2 install to a serving endpoint and one benchmark request, with copyable commands |
 | `docs/TOOLS.md` | The launcher and the pressure script, file by file: every parameter, every default, the VRAM estimator and what it assumes, the parameter-memory file, the failure logs |
 | `scripts/` | The tools themselves: `select_and_run.py`, `kv_bench.py`, `chat.html`, `start_cg_on.sh`, `saved_params.json` |
