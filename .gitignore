@@ -1,6 +1,9 @@
 # Internal source material - never published (Chinese originals + internal audit)
 _source-cn/
 
+# Internal supervision artifacts (agent reports, publish scans, benchmark runs) - never published
+_supervisor/
+
 # Raw experiment logs and result indexes: the captures carry local paths and non-ASCII
 # labels, so they stay out of the published tree (see docs/TOOLS.md). Their numeric content
 # is quoted, with sources, inside DESIGN.md.
