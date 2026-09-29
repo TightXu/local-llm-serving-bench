@@ -1,7 +1,7 @@
-# Internal source material - never published (Chinese originals + internal audit)
+# Working notes and drafts, not for publication
 _source-cn/
 
-# Internal supervision artifacts (agent reports, publish scans, benchmark runs) - never published
+# Working files, not for publication
 _supervisor/
 
 # Raw experiment logs and result indexes: the captures carry local paths and non-ASCII
