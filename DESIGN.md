@@ -1,44 +1,11 @@
 # DESIGN - local LLM serving measurements on one RTX 5090 (vLLM, NInfer, LM Studio)
 
 <!--
-Status (2026-09-23). All nine chapters are written. Chapters 4-8 were written in a second pass
-from the same body of internal source material as chapters 1-3, and chapter 6 in a third pass from
-that material plus the per-point records of the switch runs; that material is not part of this
-repository and is referred to there by an English shorthand, defined at the head of the chapter
-that first uses it.
-
-Sources are named inline in HTML comments next to the figures they support, so they can be
-stripped before publication. A source that is not in this repository is named by its own
-file name only - never by a path on the machine that produced it.
-
-Pending material, by chapter:
-  ch2 updated: the vLLM point with speculative decoding is measured and published as a second
-       vLLM column, so all four columns now carry a speculative-decoding state. Still missing:
-       a per-depth draft-acceptance reading on the vLLM side and the preemption counters for
-       those points, so the deep-context collapse cannot be separated between draft overhead
-       and pool pressure from the retained evidence. The NInfer column's acceptance figure is not
-       in the per-point records either - the harness left that field empty for that engine - so it
-       is published with its source (the engine's own request lines) and with the limit that goes
-       with the prompt it was measured on; see the acceptance-rate section of chapter 2.
-  ch6 note: the per-engine switch points of the protocol are published in chapter 6, one point per
-       setting under the comparison protocol. What that chapter still lacks is named there and in the
-       last chapter: no combination of two switches, no under-load pool occupancy or preemption
-       counter for a switch point, and no single-variable fp8-KV point at the unchanged request
-       ceiling.
-  ch4 pending: the polling driver that produced the seven in-round start-up logs was not retained,
-       so those points cannot be re-run as they stand. The eighth row of the table was rejected in
-       an earlier round and is marked as such wherever it appears.
-  ch5 pending: a same-session pair for short-context single-stream decode, so that the two read-out
-       paths a chapter apart can be separated; and a retained read-out rule for the stress series.
-  ch7 pending: the second geometry under the identical-request-surface protocol of chapter 2, and a
-       calibrated per-token constant for it in the launcher's estimator.
-  ch8 note: the source material's earlier attribution of one engine's memory behaviour was corrected
-       upstream of this repository. Only the corrected version appears in chapter 8; the superseded
-       explanation appears nowhere in this document.
-  ch9 pending: licence terms of the quantised weights and of the closed-source comparison
-       application (their model cards were not read); upstream issue numbers quoted by the source
-       material were never checked against a link, so no issue number appears in the published text
-       - only the mechanism each one described.
+Provenance. The measurements in this document were taken on the one machine described in its method
+chapter. A figure that came from an earlier session, a community report or a vendor document rather
+than from this machine is labelled as such in the sentence that quotes it, or it is not quoted;
+a figure re-derived from the configuration constants is marked computed. A source outside this
+repository is named by its file name only, never by a path on the machine that produced it.
 -->
 
 Three inference engines, one consumer GPU, and the same request sent to each of them. This
@@ -51,23 +18,17 @@ than summarising them.
 
 | # | Chapter | What it contains |
 |---|---|---|
-| 1 | Scope, hardware and measurement method | The three engines and their roles, the machine and software, the configuration snapshot, the request protocol, how each engine's numbers are read, and the limits of the method. **Written.** |
-| 2 | Three-engine comparison | The comparison matrix: three engines across four context depths, single stream, one warm-up plus three measured requests per point, the speculative-decoding state and acceptance rate at every point, and the read-out rules. **Written.** |
-| 3 | Model geometry and the KV budget | The per-token KV formula for the two model geometries measured, the pool cost a dtype switch actually controls, the memory ledger the launcher uses, the utilisation convention stated once, and the correction that the recurrent state is not governed by the KV cache dtype setting. **Written.** |
-| 4 | KV cache dtype: 8 candidates measured | The eight-row comparison of KV cache dtypes (bytes per token, pooled capacity, longest single context, start-up outcome), the counter-intuitive result and its root cause, and the explicit note that the 4-bit option is a capacity recommendation whose output quality was not measured. **Written.** |
-| 5 | Concurrency, context depth and CUDA graphs | The concurrency ladder, the preemption mechanism behind a long request collapsing to a fraction of a token per second, the safe pool-occupancy ceiling, and the CUDA graph on/off pair. **Written.** |
-| 6 | Switch matrix: one setting changed at a time | The per-engine switch points under the comparison protocol - CUDA graphs, KV cache dtype, speculative-decoding scheme, and one model swap - each at four depths, with its change against that engine's own baseline column and the capacity, memory or prefill cost it carries; plus the readings that must not be taken from it: acceptance rates near 100% that are a property of this prompt, a KV row that moved two variables, a model swap that is not an MTP measurement, and one depth whose median is a range. **Written.** |
-| 7 | MoE vs dense on one 32 GB card | Speed against context depth for both model geometries, the memory geometry that lets the MoE hold deeper contexts, and the honest limits of that comparison. **Written.** |
-| 8 | What each engine actually optimises for | Why the three engines behave differently: batching and prefix handling, memory bookkeeping, prefill strategy, and which of those differences survive once the request surface is held identical. Every inference is marked as one. **Written.** |
-| 9 | What we did not verify | Every figure that came from elsewhere, the output quality of the 4-bit KV option, licence terms, and the upstream issue numbers the source material quoted without a link. **Written.** |
+| 1 | Scope, hardware and measurement method | The three engines and their roles, the machine and software, the configuration snapshot, the request protocol, how each engine's numbers are read, and the limits of the method. |
+| 2 | Three-engine comparison | The comparison matrix: three engines across four context depths, single stream, one warm-up plus three measured requests per point, the speculative-decoding state and acceptance rate at every point, and the read-out rules. |
+| 3 | Model geometry and the KV budget | The per-token KV formula for the two model geometries measured, the pool cost a dtype switch actually controls, the memory ledger the launcher uses, the utilisation convention, and the correction that the recurrent state is not governed by the KV cache dtype setting. |
+| 4 | KV cache dtype: 8 candidates measured | The eight-row comparison of KV cache dtypes (bytes per token, pooled capacity, longest single context, start-up outcome), the counter-intuitive result and its root cause, and the explicit note that the 4-bit option is a capacity recommendation whose output quality was not measured. |
+| 5 | Concurrency, context depth and CUDA graphs | The concurrency ladder, the preemption mechanism behind a long request collapsing to a fraction of a token per second, the safe pool-occupancy ceiling, and the CUDA graph on/off pair. |
+| 6 | Switch matrix: one setting changed at a time | The per-engine switch points under the comparison protocol - CUDA graphs, KV cache dtype, speculative-decoding scheme, and one model swap - each at four depths, with its change against that engine's own baseline column and the capacity, memory or prefill cost it carries; plus the readings that must not be taken from it: acceptance rates near 100% that are a property of this prompt, a KV row that moved two variables, a model swap that is not an MTP measurement, and one depth whose median is a range. |
+| 7 | MoE vs dense on one 32 GB card | Speed against context depth for both model geometries, the memory geometry that lets the MoE hold deeper contexts, and the honest limits of that comparison. |
+| 8 | What each engine actually optimises for | Why the three engines behave differently: batching and prefix handling, memory bookkeeping, prefill strategy, and which of those differences survive once the request surface is held identical. Every inference is marked as one. |
+| 9 | What we did not verify | Every figure that came from elsewhere, the output quality of the 4-bit KV option, licence terms, and the upstream issue numbers the source material quoted without a link. |
 
 ## Scope, hardware and measurement method
-
-<!-- status: written in this pass. Sources: 3engine-benchmark-protocol-20260922.md
-(variable control, per-engine read-out definitions), 3engine-benchmark-results-20260922.md
-(measured hardware, configuration snapshot, limitations), bench/vllm-v2.json,
-bench/ninfer-v2.json and bench/lmstudio.json (raw per-point records),
-lmstudio-aggregate-20260922.md (log-derived statistics and their own limits). -->
 
 ### What is compared, and what is not
 
@@ -131,7 +92,7 @@ in September 2026.
 |---|---|---|
 | vLLM | Qwen3.8-27B-NVFP4, 21.3 GiB | pre-quantised NVFP4 release: 4-bit weights and activations with FP8 attention |
 | NInfer | the same model family as a `.ninfer` artifact, 22.1 GiB | engine-native artifact format, not an interchange format |
-| LM Studio | Qwen3.8-27B Q4_K_M GGUF, 16.8 GiB | a different quantisation from the other two |
+| LM Studio | Qwen3.8-27B Q4_K_M GGUF, 16.8 GiB | a different quantisation from the other two (GGUF: llama.cpp's model file format; Q4_K_M: its 4-bit mix) |
 
 All three serve the 27B dense member of one model family, and that shared identity is what makes
 the comparison worth making. The quantisation is *not* identical, and that is a limit of the
@@ -183,7 +144,7 @@ One request surface for all three engines, differing only in the model identifie
 7. **Concurrency.** Single stream, requests issued one after another, with each engine's own
    request limit set to 1 where it has one.
 8. **Repetition.** One warm-up request per point, discarded, then three measured requests; the
-   published figure for a point is the median of the three. The per-point records kept alongside
+   published figure for a point is the median of the three. The per-point records behind
    this document carry the median and the sample count, not the three individual values - those
    were printed by the harness at run time and only one pair of points has them in the run
    write-up, which is stated where that pair is quoted. A peak is never used as a comparison
@@ -210,7 +171,7 @@ first token, none of which is engine speed.
 | NInfer | `timings.predicted_per_second` in the response body | `timings.prompt_per_second` | `draft_n`, `draft_n_accepted` |
 | LM Studio | numeric fields of the server-log line that reports evaluation time in milliseconds and tokens per second | the matching prompt-evaluation numeric field | draft acceptance ratio, CUDA graph reuse count |
 
-Two consequences of that table are worth stating plainly. LM Studio has no timings API, so its
+Two consequences follow from that table. LM Studio has no timings API, so its
 figures can only be extracted from its server log; that makes it the weakest of the three
 sources, and it is the reason the extraction is scripted rather than read off the interface.
 Only numeric fields are read: no log line, no request or response body and no filesystem path
@@ -254,16 +215,6 @@ prefill was slow.
    difference of that size.
 
 ## Three-engine comparison
-
-<!-- Sources: 3engine-benchmark-results-20260922.md (final three-engine table, the vLLM
-speculative-decoding sweep, the limitations list), bench/vllm-v2.json, bench/vllm-mtp.json,
-bench/ninfer-v2.json and bench/lmstudio.json (per-point records: n = 3, median, derived client-side
-rate), 3engine-benchmark-protocol-20260922.md (read-out definitions, not restated here). Every
-ratio, percentage and capacity quoted below was recomputed from the numbers in this chapter.
-Still pending: a per-depth draft-acceptance reading and the preemption counters for the vLLM
-speculative series, and the dtype switch at this chapter's own request ceiling, which would make the
-KV row single-variable. The per-engine switch matrix itself is chapter 6. The depth axis published
-here is the prompt token count each engine reported, never the nominal label it was asked for. -->
 
 This is the chapter the rest of the document supports. Three engines, four context depths, one
 request in flight at a time, temperature 0, 256 output tokens, median of three measured requests
@@ -432,13 +383,13 @@ it.
 ### Sample size, spread, and the differences this method cannot resolve
 
 - Every point is n = 3 after a discarded warm-up, and the published value is the median. The
-  per-point records kept alongside this document carry the median and n; the three individual
+  per-point records behind this document carry the median and n; the three individual
   values were printed by the harness at run time and are carried in the run write-up for one pair of
   points only (the deepest-depth vLLM pair quoted above, spreads of about 4% and about 2%).
 - The spread within a point is small. The dominant variation measured on this machine is **between
   runs**: identical configurations have differed by about 10% from one boot to the next, and pooled
   KV capacity by about 7% between runs.
-- Consequences, stated as plainly as they can be: any difference below that band is unresolved by
+- The consequences are plain: any difference below that band is unresolved by
   this method. vLLM's 67.3 against 63.3 at the two shallow depths and LM Studio's 91.0 against 85.3
   are both inside it, so neither may be read on its own as "the engine slows down with depth". The
   monotone trend each of those engines shows across all four depths, and the endpoint differences
@@ -466,7 +417,7 @@ it.
 
 ### When this stops being three separate measurements and becomes a comparison
 
-Five things have to match at every point, and any one of them that differs turns the rows back into
+Every point has to match on five things; where one of them differs, the rows are back to
 three separate measurements. The state of each one here is given with it.
 
 1. the depth as the engine reported it - matches to within 40 tokens at the deepest point, a
@@ -478,32 +429,7 @@ three separate measurements. The state of each one here is given with it.
    pair rather than as one column for this reason;
 5. the number of requests in flight - 1 at every point.
 
-### Still pending for this chapter
-
-1. A per-depth draft-acceptance reading for the vLLM speculative series, and the preemption counters
-   for those points. The deep-context collapse is reproducible, but the retained evidence does not
-   separate draft overhead from pool pressure, because the preemption counter was read during the
-   run and is not carried in the per-point records this repository keeps.
-2. Two points that would tighten the switch matrix of chapter 6: the fp8-KV point taken at this
-   chapter's own request ceiling, so that the dtype becomes the only variable in that row, and a
-   combination point that puts graphs off together with speculation on.
-3. A concurrency ladder, which would move this chapter from "one request at a time" to something
-   that speaks to serving several requests at once.
-
 ## Model geometry and the KV budget
-
-<!-- Sources for this chapter (shorthand used because none of these files is part of this
-repository; the numbers were re-derived here, not copied):
-  cn-geometry  = the internal model-geometry table and per-token formula (27B and MoE configs)
-  cn-kv-dtype  = the internal write-up of the eight KV cache dtype start-up runs (2026-09-04)
-  cn-moe       = the internal write-up of the MoE measurement and its start-up failures (2026-09-05)
-  cn-ledger    = the internal engine-comparison write-up, section on memory-ledger differences
-  scripts/select_and_run.py in this repository carries the launcher constants quoted below.
-Every capacity, residual and pool figure in this chapter was recomputed from the constants shown in
-it; the recomputation and every point where it disagrees with the source material are recorded in
-the execution notes for this document. One published figure is not reproducible and is explicitly
-not used here: a MoE pool of ~5.3 GiB paired with a ~192K single-request ceiling (that pairing
-cannot hold - see the ledger examples below for the figures that do). -->
 
 ### The per-token KV formula, and the two geometries measured
 
@@ -615,7 +541,7 @@ rather than faults, and both have been hit on this machine.
 | Peak activations | 1.92 GiB | follows the batch budget; at the 32-sequence batch of the dtype series the same arithmetic implies about 2.25 GiB |
 | Non-torch overhead | 1.9 GiB | CUDA context, workspaces |
 | CUDA-graph reserve | 0.11-0.18 GiB for the per-token quantised family, 0.44-0.51 GiB for the 8-bit family | varies with the attention backend |
-| MTP head | 0.4 GiB | about one extra layer plus its drafting activations |
+| MTP head | 0.4 GiB | about one extra layer plus its drafting activations (MTP is multi-token prediction: the model drafts ahead and the target model verifies) |
 | Error band on the pool | +-12% | non-torch overhead and the CUDA-graph estimate |
 
 Worked examples, all recomputed here from the table above:
@@ -645,7 +571,7 @@ compromise against a 200K target, not the ceiling. The MoE's remembered configur
 150,000-token context limit against the computed ceiling of about 192.8K derived above. Quoting
 either 150K as the capacity of the corresponding configuration would be wrong in the same direction.
 
-### The utilisation convention, stated once
+### The utilisation convention
 
 Four values of `gpu-memory-utilization` appear in the material behind this repository. They are not
 four opinions about one setting; they are one setting at four different jobs, and a capacity quoted
@@ -653,7 +579,7 @@ without its util is not a measurement.
 
 | Value | What it is |
 |---|---|
-| 0.92 | the steady-state default: the value the geometry table above is stated at, and the launcher's own default |
+| 0.92 | the steady-state default: the value the geometry table above uses, and the launcher's own default |
 | 0.93 | the dense model's remembered setting, the value its parameter memory carries |
 | 0.94 | the ceiling used in the stress tests and in the comparison run of the previous chapter - viable on this machine, not a daily setting |
 | 0.90 and below | the recommendation for the MoE, whose weights are 23.27 GiB against the dense model's 21.34 GiB; the 1.93 GiB difference comes straight off the pool at the same util |
@@ -685,24 +611,13 @@ are the ones this document uses. Where exactly the recurrent state is charged is
 evidence retained here; what is settled is that the KV cache dtype switch cannot move it, and that a
 budget built from theoretical bytes per element will understate the pool.
 
-Two limits go with this. On a decoder-only model with no recurrent layers, the same switch should
+Two limits apply here. On a decoder-only model with no recurrent layers, the same switch should
 return the theoretical factor and the 8-bit step should save what it promises; nothing here was
 measured on such a model, so the finding above must not be carried over to one. And the per-token
 constants in this chapter are for these two checkpoints on this card, at the batch sizes stated;
 they are not properties of the dtypes themselves.
 
 ## KV cache dtype: 8 candidates measured
-
-<!-- Sources: cn-kv-dtype = the internal write-up of the KV cache dtype start-up series
-(2026-09-04). One artefact of that series exists in this work copy as a result summary with one
-RESULT line per attempt (7 attempts); it is excluded from the published tree by .gitignore, so the
-numbers below are quoted with their source rather than shipped as raw evidence. cn-geometry and the
-attention formula are the ones established in the previous chapter. Every pool cost, capacity ratio and residual below
-was recomputed from the reported pool size and the reported token capacity rather than copied from
-the source material; where the recomputation disagrees with it, this chapter follows the
-recomputation and the disagreement is recorded in the execution notes for this document. The polling
-driver that produced the start-up logs was not retained: these points exist as evidence and cannot
-be re-run as they stand. -->
 
 ### Method
 
@@ -717,11 +632,11 @@ own start-up-complete line; every candidate that reached that point was then sen
 request at temperature 0 expecting a numeric answer, and the process was killed to release device
 memory before the next candidate began. Six of the seven answered. The retained summary carries one
 line per attempt with the outcome and the answer (it is not part of the published tree; see the
-source note above), and the attempt stamps show the whole series inside
+not part of the published tree), and the attempt stamps show the whole series inside
 26 minutes, with the one failing candidate returning 43 seconds after its attempt began - well inside
 the 300-second window, which is what a fast explicit refusal looks like rather than a hang.
 
-Two properties of that method have to travel with the table:
+Two properties of that method belong with the table:
 
 - **The settings are fixed; the pool is not.** With the same settings the engine ends up with a
   different pool on each start: 3.04 GiB on the first candidate, 3.74 GiB on the last. The ledger's
@@ -796,7 +711,7 @@ row where intuition and measurement agree.
 
 ### The root-cause chain
 
-Three links, in the order the evidence supports them.
+The chain has three links, in this order.
 
 1. **The pool is not mostly attention state.** Of the checkpoint's 64 layers, 16 are full-attention
    and 48 are linear-attention layers that carry a recurrent state - a convolution state and a
@@ -916,19 +831,10 @@ at all.
 
 ## Concurrency, context depth and CUDA graphs
 
-<!-- Sources: cn-concurrency = the internal write-up of the KV pool concurrency stress series and the
-CUDA graph pair (2026-09-05), whose harness family is the one in this repository
-(scripts/kv_bench.py); cn-moe = the internal write-up of the second geometry, which contributes the
-occupancy points and is the subject of chapter 7. The pool cost per token and the ledger constants
-are the measured ones of the two preceding chapters. Where a figure is a rate multiplied by a
-concurrency it is marked computed; where a read-out was not retained the cell says so. These points
-were taken in a different series from the comparison matrix, with different depths, output lengths
-and read-out rules, and they are not part of that matrix. -->
-
 ### Method
 
 The measurements in this chapter come from a different series from the comparison matrix, and mixing
-them would be a mistake, so the difference is stated first. The comparison matrix is one request at a
+them would be a mistake, so the difference comes first. The comparison matrix is one request at a
 time, 256 output tokens, a fixed fill corpus, three repetitions, and the engine's own counter as the
 read-out. The series here is a stress series: several requests in flight, prompts of about 4,000 and
 about 48,000 real prompt tokens, 400 to 500 output tokens, and per-request rates read from the
@@ -963,7 +869,7 @@ because it assumes the requests received equal shares of the device.
 | 5 | about 48,000 | 400 | on | 24.6% | 0 | 13.7 | about 69 |
 | 5 | about 48,000, **identical content** | 400 | on | 22.3% | 0 | 11.0 | about 55 |
 
-Four statements are supported by this table.
+The table supports four statements.
 
 1. **Depth costs far more than concurrency does.** Raising the prompt from about 4,000 to about
    48,000 tokens at three requests in flight costs 3.6x of per-request rate (43.9 to 12.2,
@@ -982,8 +888,8 @@ Four statements are supported by this table.
 4. **The same configuration, run twice, gave 6.3 and 13.7 tokens per second.** Those two cells share
    depth, concurrency, pool settings and read-out, and they differ by 2.2x - far outside the ~10%
    run-to-run band this document quotes for single-stream work, and outside anything the counters
-   explain (50.8% against 24.6% pool peak, both with zero preemptions). **Consequence, stated
-   plainly: the individual cells of this ladder are indicative, the counters that came with them are
+   explain (50.8% against 24.6% pool peak, both with zero preemptions). **The consequence: the
+   individual cells of this ladder are indicative, the counters that came with them are
    the durable evidence, and no figure in this chapter should be quoted to a decimal place.** Where
    the ladder and the counters appear to disagree, the counters win. The CUDA graph pair later in
    this chapter quotes the same two rounds from the other side, and its note says which round is
@@ -1046,7 +952,7 @@ The conditions that go with the rule, because without them it reads as a law of 
   under the line is the state the running set needs. The 80K x 4 point shows why: 80.6% occupancy,
   zero preemptions, and still a fivefold drop in per-request rate against the shallow point. Staying
   under the ceiling does not make deep work fast; it only keeps it from being evicted.
-- It is stated at the **peak**, not at the average, because the preemption decision is made at the
+- It is read at the **peak**, not at the average, because the preemption decision is made at the
   peak.
 - It depends on the KV **dtype**, because the same token count occupies different bytes under
   different dtypes (previous chapter). A depth-x-concurrency product that fits at 4 bits may not fit
@@ -1109,8 +1015,8 @@ Same regime - short context, single stream, graphs on, dense geometry - so they 
 **about 48 to 50 tokens per second**, with the difference attributed to prompt depth (a 117-token
 prompt against a 4,000-token one) rather than to a conflict between two read-outs.
 
-A third reading of the same regime does not sit inside 10% of those, and it has to be stated rather
-than hidden: the single-stream comparison series reads the engine's own counter and reports 67.3
+A third reading of the same regime does not sit inside 10% of those, and it is worth setting out
+rather than hiding: the single-stream comparison series reads the engine's own counter and reports 67.3
 tokens per second at a 117-token prompt and 63.3 at a 4,570-token prompt, with the same KV dtype and
 the same graph state. That is about 40% above the two readings above, which is far outside the
 run-to-run band, and the read-out path is the leading candidate for the difference: the comparison
@@ -1386,14 +1292,6 @@ What it does show, with those limits attached:
 
 ## MoE vs dense on one 32 GB card
 
-<!-- Sources: cn-moe = the internal write-up of the second geometry's measurement and its start-up
-failures (2026-09-05); cn-concurrency = the dense stress series quoted in the concurrency chapter. The
-geometry, the per-token formula and every ratio below were recomputed from the constants in the
-geometry chapter, not copied. The second geometry was **not** run through the identical-request-surface
-matrix of this document: the two series quoted here differ in depth, concurrency, output length, KV
-dtype and request ceiling, each difference is named where the figure appears, and no cross-geometry
-number in this chapter is an identical-protocol comparison. -->
-
 ### Two geometries on one card
 
 A recap of the geometry chapter, because it is the whole story of this one:
@@ -1407,9 +1305,10 @@ A recap of the geometry chapter, because it is the whole story of this one:
 | Measured weights | 21.34 GiB | 23.27 GiB |
 | Recommended utilisation | up to 0.93 as remembered | 0.90 or below |
 
-The number of experts, the number of activated parameters and the weight file size never enter the
-KV formula. The second geometry holds **31.25% of the dense per-token KV cost - 3.2x as many tokens
-for the same pool bytes** - and it also carries 1.93 GiB more weights.
+MoE here means mixture of experts: only a fraction of the model's expert blocks is active per token,
+and the number of experts, the number of activated parameters and the weight file size never enter
+the KV formula. The second geometry holds **31.25% of the dense per-token KV cost - 3.2x as many
+tokens for the same pool bytes** - and it also carries 1.93 GiB more weights.
 
 ### Speed against context depth
 
@@ -1425,7 +1324,7 @@ harness family, but not from the same settings, so read the column set with the 
 | dense | about 48K | 3 | `int4_per_token_head` | 12.2 | about 37 | not retained | 0 |
 | dense | about 48K | 5 | `int4_per_token_head` | 6.3-13.7 | about 32-69 | 24.6-50.8% | 0 |
 
-Three readings, each with its own caveat:
+The three readings below each carry their own caveat:
 
 1. **Both geometries lose most of their shallow-context rate by deep context.** The MoE falls 81%
    from its shallow point to 80K; the dense model falls 75% from its about-4K point to about 48K
@@ -1474,7 +1373,7 @@ chapter exists: 9.7% with zero preemptions at shallow depth, 80.6% with zero pre
 97.6% with one preemption at 100K. By the comparison chapter's own rejection rule, the 100K x 5 point
 is not a clean measurement. Read together with the dense points, they say something narrower than
 "keep the pool under 85%": at every point where the pool was under the line, no eviction occurred;
-the one point above it evicted. Three points, one card, one week - a heuristic.
+the one point above it evicted. That is a heuristic drawn from three points on one card in one week.
 
 The recorded configuration note for this geometry - a 150,000-token context ceiling with 12 sequence
 slots - is a remembered working point, not a measured ceiling. The working point the source material
@@ -1516,23 +1415,13 @@ dense model's 150,000 figure as a capacity (geometry chapter).
    which reads as a hang rather than as a failure. Cached afterwards, the same start is quick. All of
    that is reported by the source material and was not re-measured here.
 
-What survives this comparison: the per-token geometry does what the formula says, a pool of a given
+What this comparison supports: the per-token geometry does what the formula says, a pool of a given
 size holds 3.2x the context on the second geometry, the shallower-context speed advantage is real
 (about 2.5x at the measured ceilings), and the deep-context occupancy points behave the way the
-per-token cost predicts. What does not survive: any claim that the second geometry is faster at every
+per-token cost predicts. What it does not support: any claim that the second geometry is faster at every
 depth, any claim about its quality, and any claim that a 200K context was held on this card.
 
 ## What each engine actually optimises for
-
-<!-- Sources: cn-ledger and cn-compare = the internal two-engine comparison write-up and its own
-later correction sections, which are the source of the memory-bookkeeping material; cn-concurrency
-as in the concurrency chapter and cn-moe as in the previous one; the comparison matrix of this
-document for the across-engine figures; the start-up logs behind the geometry chapter for the
-per-token costs. This chapter is where mechanism is read off measurements, so every sentence that
-reasons past a measured number is marked as an inference where it is made, and the measured facts it
-reasons from are named.
-The corrected version of the two attributions the source material superseded is used here; the
-superseded versions appear nowhere in this document. -->
 
 ### The three budget models
 
@@ -1597,7 +1486,7 @@ Prefill is where the engines separate most cleanly in the measurements that exis
 | about 17,900 | 8,563 tok/s | 3,333 tok/s |
 | about 53,500 | 6,236 tok/s | 2,804 tok/s |
 
-The first engine ingested these prompts 2.2x to 2.8x faster at every depth measured (computed). The
+NInfer ingested these prompts 2.2x to 2.8x faster at every depth measured (computed). The
 third engine's cells are empty for the reason given in the method chapter: it publishes no
 independent prefill counter and the client-side combination was never implemented - so **the engine
 whose reported mechanism is strongest at prefill has no prefill figure under this protocol at all.**
@@ -1618,7 +1507,7 @@ aggregate and ingestion rates); the design intention is inference.
 
 ### Memory bookkeeping: the corrected attribution
 
-The source material behind this repository first attributed one engine's more constrained memory position to the fact that it captures CUDA graphs where the other does not. **That attribution is superseded and does not appear in this document.** The corrected version, which is what is stated here:
+The source material behind this repository first attributed one engine's more constrained memory position to the fact that it captures CUDA graphs where the other does not. **That attribution is superseded and does not appear in this document.** The corrected version, which is what appears here:
 
 - The **main** cause is the budget model above: one engine charges reserve terms against a
   whole-device ceiling before the pool exists; the other writes a weight-plus-KV configuration
@@ -1654,12 +1543,12 @@ engine does. What is measured is the three formats and two of the three per-toke
 that this is what sets the practical depth ceiling follows from the pool arithmetic and is an
 inference from it.
 
-### What survives once the request surface is identical
+### What holds once the request surface is identical
 
 The comparison chapter held five things constant - the depth as each engine reported it, the output
 length, the sampling temperature, the speculative-decoding on/off state, and one request in flight -
 and named the things that do not match (weight format, KV format, speculation scheme, the definition
-of the acceptance rate). With that surface fixed, the following statements survive:
+of the acceptance rate). With that surface fixed:
 
 1. **Each engine's own decode rate falls with depth, and the ordering between engines is stable
    across the four depths**, with the leading engine first at every point by a margin far outside the
@@ -1694,10 +1583,6 @@ rate is flat or one acceptance rate is high - is inference from those facts and 
 
 ## What we did not verify
 
-<!-- Sources: every chapter of this document, plus the source material named in them. This chapter
-exists so that a reader does not have to reconstruct, from nine chapters of measurements, which
-numbers are this machine's and which are somebody else's. -->
-
 ### Figures that came from outside this machine
 
 The material behind this repository mixes measurements from this machine with readings from other
@@ -1715,7 +1600,7 @@ that quotes it, or it is not quoted. These are the ones that were kept, with wha
 | a context configuration on the closed-source side that an earlier note records as 20,000 tokens | a per-model setting, and one whose own records disagree with that note: the same sessions carry 200,192 to 231,168 tokens, and this document's configuration snapshot quotes 201,000 | the 20,000 reading is not reproducible from those records and is used as a depth nowhere in this document; the same-protocol matrix ran that configuration at 201,000 |
 | any statement that a 200,000-token context "fits" | a formula result | the single recorded attempt at that size failed by about 0.07 GiB; the ceilings published in this document are one measured capacity and several computed ones |
 
-**The 78.5 check, stated once.** One row above carries a figure whose status has to be explicit, and
+**The 78.5 check.** One row above carries a figure whose status has to be explicit, and
 the check that decides it was designed before the measurement rather than after it. The protocol
 behind this document pre-registered the judgement for that earlier reading: a 0K-depth, single-stream
 decode measurement landing inside **74.6 to 82.4** - the earlier number plus or minus 5% - and
@@ -1791,7 +1676,7 @@ written, and nothing here asserts any right to redistribute them:
   turned back off after the measurement window, and the log files produced during that window were
   truncated back to their pre-measurement size. **No log line, request or response body, or
   filesystem path from it appears in this repository or anywhere it points to.**
-- the open-source serving engine and its kernel and runtime dependencies, whose licences are stated
+- the open-source serving engine and its kernel and runtime dependencies, whose licences live
   in their own projects rather than repeated here.
 
 The repository's own LICENSE covers the text and the scripts in it, and says nothing about the
@@ -1826,7 +1711,7 @@ one is asking to be trusted rather than checked.
    server figure by 6.5x.
 5. **One of the three engines has no prefill figure** under this protocol, and the two that do were
    measured by two different read-out paths.
-6. **The nominal depths overshoot by up to 45%**, so every published figure is stated against the
+6. **The nominal depths overshoot by up to 45%**, so every published figure is tied to the
    prompt token count each engine reported rather than against the number requested.
 7. **The rejection thresholds were applied as rules and fired asymmetrically**: the 32-token floor
    and the 400 tok/s ceiling never fired in the comparison matrix, while the preemption rule is what
@@ -1837,7 +1722,7 @@ one is asking to be trusted rather than checked.
 
 ### What this repository does claim
 
-That one machine's numbers, taken under a stated method, support the specific statements labelled as
+That one machine's numbers, taken under a documented method, support the specific statements labelled as
 measured in the nine chapters above - and nothing further. The statements that did not survive
 recomputation were corrected or dropped rather than carried, the mechanisms that were inferred are
 marked as inference where they appear, and the material that came from elsewhere is either labelled

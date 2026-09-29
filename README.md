@@ -4,8 +4,9 @@ One consumer GPU, one machine, and a question that kept coming back: what does i
 serve a 27B-class model at home with long context and several requests in flight at once, and which
 of the settings that get repeated online actually pay off? This repository is the answer in numbers.
 It holds measurements, not software. Everything here came from running vLLM, NInfer and LM Studio on
-a single RTX 5090 (32 GB, sm_120) under WSL2, and then writing down what came back, including the
-results that contradicted the advice I had been following and the things I could not verify.
+a single RTX 5090 (32 GB, sm_120) - the first two under WSL2, LM Studio on the Windows side - and then
+writing down what came back, including the results that contradicted the advice I had been following
+and the things I could not verify.
 
 ## What this is
 
@@ -29,8 +30,8 @@ costing me time. The answers were specific enough to be useful and surprising en
 
 Anyone running a large model on one consumer GPU, especially a 5090-class Blackwell card (sm_120)
 under WSL2, where kernels for the newest compute capability are the first thing to break. Also
-anyone deciding between a dense model and an MoE model of the same class, or between a serving
-engine and a desktop inference application. If you are choosing a KV cache dtype, start with
+anyone deciding between a dense model and an MoE (mixture-of-experts) model of the same class, or
+between a serving engine and a desktop inference application. If you are choosing a KV cache dtype, start with
 [the KV cache dtype comparison](DESIGN.md#kv-cache-dtype-8-candidates-measured); if you are chasing
 a throughput cliff, start with
 [concurrency, context depth and CUDA graphs](DESIGN.md#concurrency-context-depth-and-cuda-graphs); if
@@ -69,7 +70,7 @@ two vLLM columns are the same engine at the same points with and without specula
 | 32,768 | 17,882 - 17,922 | 58.3 | 59.5 | 251.7 | 134.3 |
 | 98,304 | 53,507 - 53,547 | 45.5 | 30.1 | 230.9 | 72.5 |
 
-**Three statements survive this table and nothing further does:**
+The table below supports three statements, and nothing further:
 
 - **NInfer was the fastest engine at every depth**, by 3.9x to 5.1x against vLLM without
   speculative decoding, and it is the only engine whose speed barely moves with depth (262.5 at the
@@ -91,16 +92,17 @@ two vLLM columns are the same engine at the same points with and without specula
   under speculative decoding follows the acceptance rate, and context length is only one of the
   things that moves it.
 
-**And five things make this four columns rather than one comparison:**
+Five further differences keep the four columns from being one comparison:
 
 - **The speculative-decoding state and scheme differ.** NInfer ran with 3 draft tokens, LM Studio
   ran with a draft head shipped inside its weights, and vLLM appears twice because it ran both ways.
   The acceptance rate is engine-internal in each case, so it explains an engine's own speed and
   cannot be ranked across engines.
-- **The weights and the KV cache dtype are not the same.** LM Studio served a Q4_K_M GGUF artifact
-  with `q4_0` KV while the other two served pre-quantised NVFP4 (`int4_per_token_head` and `fp8`), so
-  the engines were not even holding the same amount of context state per token - and part of any
-  difference is weight format, which these runs cannot separate.
+- **The weights and the KV cache dtype are not the same.** LM Studio served a Q4_K_M GGUF artifact -
+  GGUF is llama.cpp's model file format, Q4_K_M its K-quant mix - with `q4_0` KV, while the other two
+  served pre-quantised NVFP4 (a 4-bit floating-point weight format) with `int4_per_token_head` and
+  `fp8`, so the engines were not even holding the same amount of context state per token - and part
+  of any difference is weight format, which these runs cannot separate.
 - **The depth labels are off by 45%.** The fill corpus is sized by characters, not tokens: the
   98,304-token request landed at 53,547 prompt tokens. All three engines received the same bytes, so
   the points stay comparable with each other, but the depth axis must not be read at face value.
@@ -128,7 +130,7 @@ tooling's own estimates are calibrated against.
 | CUDA graphs off against on, 5 concurrent 48K prompts | 6.3 to 8.8 tokens/s in that round (+40%); two other graphs-on rounds of the same point read 6.3 and 13.7 - different runs, not comparable |
 | KV pool peak occupancy, 5 concurrent 48K prompts, unique salts | ~51% with zero preemptions |
 | The one observed collapse to 0.5 tokens/s | ~97% pool occupancy with preemptions; the pool, not the GPU |
-| MoE 35B-A3B, 4 concurrent requests near zero depth | 120.9 tokens/s aggregate, 10,240 B KV per token - 69% less than the dense geometry |
+| MoE 35B-A3B, 4 concurrent requests near zero depth | 120.9 tokens/s per request (aggregate about 484, computed), 10,240 B KV per token - 69% less than the dense geometry |
 
 The apparent ~8% capacity gain from fp8 is the one that needs stating carefully: the per-token pool
 cost was almost identical (0.65% apart, and the engine's default was the higher of the two), and the

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 r"""select_and_run.py — interactive vLLM model launcher (RTX 5090 / WSL2)
-Called by start_vllm.bat (Windows) or start_vllm.sh (WSL) → this script
+Normally started from a one-line wrapper - a .bat on the Windows side or a .sh inside WSL - or run
+by hand. No wrapper ships with this repository.
 
 - Press Enter all the way = one-key start of the default model (a setup verified on this machine)
 - In advanced mode, typing /? prints the help text of the current parameters
@@ -79,10 +80,10 @@ PARAM_DEFS = [
              "(none) = do not split, keep the raw thinking text in the output",
      "choices": ["qwen3", ""], "choice_names": ["qwen3", "(none)"]},
     {"key": "mtp", "label": "MTP speculative decoding",
-     "help": "Multi-token prediction speedup: draft and verify several tokens in one forward pass; measured +33~88% on single-stream decode "
-             "(the same mechanism LM Studio uses).\n"
+     "help": "Multi-token prediction: draft and verify several tokens in one forward pass - the same mechanism the closed-source desktop application uses. "
+             "Smoke-tested only here: the option runs, and neither its speed nor its output quality was measured under this repository's protocol.\n"
              "[WARN] only checkpoints that carry the MTP head (nextn layer) can use it: Qwen3.8 [OK] / Qwen3.6 [FAIL] (no such head, the option is ignored);\n"
-             "quality status as measured: fp8 KV [OK] / turboquant [FAIL] / int4_per_token_head [WARN];\n"
+             "quality status smoke-tested only (one request per configuration): fp8 KV [OK] / turboquant [FAIL] / int4_per_token_head [WARN];\n"
              "[WARN] on sm120 MTP pushes the fused GDN kernel back onto the slow Triton path, so the real gain needs measuring;\n"
              "check: in /metrics a spec_decode_num_accepted / draft_tokens ratio >0.5 is where it actually pays off",
      "choices": ["off", "on"], "choice_names": ["off (default)", "on (num_spec=3)"]},

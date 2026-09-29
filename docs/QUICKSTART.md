@@ -76,7 +76,8 @@ python3 -c "import vllm, torch; print(vllm.__version__, torch.__version__)"
 
 ## 4. Get the weights
 
-The measurements used a pre-quantised NVFP4 release of a 27B-class model. Two traps here:
+The measurements used a pre-quantised NVFP4 release of a 27B-class model (NVFP4: a 4-bit
+floating-point weight format for Blackwell-class cards). Two traps here:
 
 - **A library filter on the model hub can hide the release you want.** Filtering by a serving
   library returns third-party quantisations and may not list the one that is actually supported.
@@ -192,8 +193,8 @@ Two failure modes worth recognising:
 
 ## 8. The third engine: LM Studio, on the Windows side
 
-LM Studio is a desktop application: it runs on Windows, loads a GGUF model, and exposes an
-OpenAI-compatible endpoint on its own port. The command line interface ships with it.
+LM Studio is a desktop application: it runs on Windows, loads a GGUF model (llama.cpp's file format),
+and exposes an OpenAI-compatible endpoint on its own port. The command line interface ships with it.
 
 ```text
 lms server start --port 1234
@@ -258,10 +259,11 @@ What comes back, and what each line means:
   characters, and English prose runs at roughly four characters per token, so asking for 48000
   lands near 12000 prompt tokens. Read the real depth out of the server's own response.
 
-Two things this script will not do: it only works against vLLM, because it reads counters that
-only vLLM publishes at `/metrics` - point it at another engine and it fails before sending a
-request - and it is a single burst, not a sustained load test. [TOOLS.md](TOOLS.md) has the full
-flag list and the estimator's assumptions.
+Two things this script will not do: it only reads counters that vLLM publishes at `/metrics` -
+point it at another engine and it still sends the requests, but the pool occupancy and preemption
+fields come back `n/a`, so all it gives you there is per-request wall-clock timing - and it is a
+single burst, not a sustained load test. [TOOLS.md](TOOLS.md) has the full flag list and the
+estimator's assumptions.
 
 To eyeball the server instead of measuring it, open `scripts/chat.html` in a browser while the
 server is on port 8000: it lists the models and sends one request. If the page reports a fetch

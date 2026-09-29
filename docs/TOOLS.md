@@ -94,14 +94,14 @@ values override them per model.
 | `max_model_len` | 65536 | Per-request context ceiling in tokens. The estimated ceiling for this model on this card is about 97K; set it too high and vLLM reports `KV cache needed > available` at start-up. |
 | `max_num_seqs` | 32 | Sequences processed at once. This architecture is hybrid: 48 of 64 layers keep a recurrent state per sequence, so the ceiling is about 82 regardless of free memory. Raising it past that fails at start-up. |
 | `kv_cache_dtype` | `fp8` | KV cache storage format, chosen from eight candidates. See the table below. |
-| `gpu_memory_utilization` | 0.92 | Fraction of total VRAM vLLM may claim. Leave room for the desktop and the system; 0.92 is the steady-state value used here, 0.94 is a stress-test ceiling, and the larger MoE weights want 0.90 or less. |
+| `gpu_memory_utilization` | 0.92 | Fraction of total VRAM vLLM may claim. Leave room for the desktop and the system; 0.92 is the steady-state value used here, 0.94 is a stress-test ceiling, and the larger MoE (mixture-of-experts) weights want 0.90 or less. |
 | `temperature` | 1.0 | Sampling temperature, the published recommendation for this family's thinking mode. It is passed to vLLM **only when it differs from this default**. |
 | `top_p` | 0.95 | Nucleus sampling cutoff; same pass-it-only-if-changed rule. |
 | `top_k` | 20 | Sample from the k most likely tokens; same rule. |
 | `port` | 8000 | Service port. The OpenAI-compatible endpoint is `http://localhost:<port>/v1`. |
 | `enforce_eager` | `n` | `n` leaves CUDA graphs on (the engine's own default). `y` adds `--enforce-eager` and disables them. Measured: CUDA graphs on gave 13.9 to 48.2 tokens/s single-stream at short context (+247%) and +40% under a long-context load in that round (two other rounds of the same 5 x 48K point read 6.3 and 13.7 - different runs, not comparable), costing 0.11 to 0.51 GiB depending on the KV dtype (start-up log values; an earlier write-up of the same series used 0.15 to 0.51 GiB). Eager is for a card that is out of memory, nothing else. |
 | `reasoning_parser` | `qwen3` | `qwen3` moves the thinking trace into a separate `reasoning_content` field; the empty choice leaves it in the output text. |
-| `mtp` | `off` | Speculative decoding with 3 draft tokens, added as `--speculative-config`. Only models whose checkpoint ships an MTP head can use it: the launcher checks the model name against `Qwen3.8` and silently ignores this setting for anything else, printing an informational line in the estimate panel. |
+| `mtp` | `off` | Speculative decoding with 3 draft tokens, added as `--speculative-config`. Only models whose checkpoint ships an MTP head (MTP is multi-token prediction: the model drafts several tokens ahead of the verifier) can use it: the launcher checks the model name against `Qwen3.8` and silently ignores this setting for anything else, printing an informational line in the estimate panel. |
 
 Two things the launcher does not expose. `--tool-call-parser qwen3_coder` and
 `--enable-auto-tool-choice` are always passed, not configurable; and the sampling parameters are
@@ -170,7 +170,7 @@ obviously doomed start, not as a prediction.
 
 ---
 
-## `kv_bench.py` (135 lines, Python 3 standard library only)
+## `kv_bench.py` (144 lines, Python 3 standard library only)
 
 A concurrency and KV-pressure probe for a vLLM server. It fires N requests of a chosen prompt
 size at once, and while they run it samples the server's own Prometheus counters, so the numbers
@@ -196,13 +196,17 @@ endpoint: the tool removes a trailing `/v1` and appends `/metrics`. Point it at 
 metrics resolve to the server root; point it at the server root itself and the same URL is used
 directly. Point it at anything else and the metrics request will 404 or time out.
 
-Two consequences worth knowing before you run it:
+Two things to know before you run it:
 
-- **It is a vLLM-specific tool.** The counters it reads (`vllm:num_requests_running`,
-  `vllm:num_requests_waiting`, `vllm:generation_tokens_total`, `vllm:num_preemptions_total`,
-  `vllm:kv_cache_usage_perc`) exist only on vLLM. Against an engine with no `/metrics`, the
-  snapshot returns nothing and the script fails immediately at its first print, before sending a
-  single request - it does not degrade gracefully.
+- **It is a vLLM-specific tool, and it does not stop when vLLM is not there.** The counters it reads
+  (`vllm:num_requests_running`, `vllm:num_requests_waiting`, `vllm:generation_tokens_total`,
+  `vllm:num_preemptions_total`, `vllm:kv_cache_usage_perc`) exist only on vLLM. Against an engine
+  with no `/metrics`, the snapshot returns nothing, the tool prints
+  `start: /metrics not reachable - this engine publishes no Prometheus counters` (and the same line
+  in place of the end block), and it still sends every request: the per-request wall-clock rates come
+  back as usual while the preemption delta and the pool peak read `n/a` in the `[RESULT:...]` line.
+  That is a useful run for per-request timing and says nothing about the engine's pool, so do not
+  quote its occupancy or preemption numbers at all.
 - **The model id is discovered, not passed.** It reads the first id from `<base-url>/models` with a
   5-second timeout. If that fails it falls back to the hard-coded name `Qwen3.8-27B-NVFP4`, which
   will only be accepted by a server that happens to serve that same name.
