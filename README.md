@@ -1,5 +1,7 @@
 # Serving a 27B-class model on one RTX 5090: what three inference engines actually measured
 
+> 30-second version: [TLDR.md](TLDR.md)
+
 One consumer GPU, one machine, and a question that kept coming back: what does it really cost to
 serve a 27B-class model at home with long context and several requests in flight at once, and which
 of the settings that get repeated online actually pay off? This repository is the answer in numbers.
@@ -92,7 +94,7 @@ The table below supports three statements, and nothing further:
   under speculative decoding follows the acceptance rate, and context length is only one of the
   things that moves it.
 
-Five further differences keep the four columns from being one comparison:
+Four further differences keep the four columns from being one comparison:
 
 - **The speculative-decoding state and scheme differ.** NInfer ran with 3 draft tokens, LM Studio
   ran with a draft head shipped inside its weights, and vLLM appears twice because it ran both ways.
@@ -163,6 +165,10 @@ Two directories in the working copy are deliberately **not** part of the publish
   of reason - its pattern table lists the private names it screens for - and it remains a working-copy
   tool run before each push.
 
+Two further working-copy directories are excluded by `.gitignore` for the same class of reason and
+are not described here: `_source-cn/` holds the earlier Chinese-language capture reports and notes,
+and `_supervisor/` holds the working files behind them (protocols, design drafts and review notes).
+
 See [docs/TOOLS.md](docs/TOOLS.md) for what each file does and why it is or is not included.
 
 ## Quick start
@@ -212,6 +218,20 @@ files alone. Where that matters, the documents say so instead of guessing.
   read either.
 - Found a number that contradicts your own measurements? That is the useful kind of issue: please
   include your hardware, driver, engine version and the exact flags.
+
+## Start here
+
+A measurement record for local LLM serving: how fast vLLM, NInfer and LM Studio generate output for a 27B-class model on an RTX 5090 (32 GB), measured September 2026.
+
+1. [DESIGN.md](DESIGN.md): which engine wins as the prompt grows (NInfer at every length: 262.5 tok/s near zero, 230.9 at the longest).
+2. [docs/TOOLS.md](docs/TOOLS.md): what each launcher parameter does (CUDA graphs on: 13.9 to 48.2 tok/s single stream short context, +247%; +40% in one long-context round).
+3. [docs/QUICKSTART.md](docs/QUICKSTART.md): how to rebuild the setup (first start compiles kernels, up to about twenty minutes).
+
+Check it yourself: open [DESIGN.md](DESIGN.md#the-matrix), see "The matrix".
+
+Limits: one machine; the engines held different weight formats (NVFP4 against GGUF), so part of the gap is weight format, not engine.
+
+Summary: [TLDR.md](TLDR.md).
 
 ## License
 
